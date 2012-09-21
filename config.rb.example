@@ -1,0 +1,8 @@
+#!/usr/bin/ruby1.9.1
+
+config = {
+	server: 'hpfeeds.honeycloud.net',
+	port:   10000,
+	ident:  'MyUsername',
+	auth:   'MyPassword'
+}

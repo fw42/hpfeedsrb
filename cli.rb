@@ -5,13 +5,7 @@ require 'pp'
 require 'fiber'
 require 'wirble'
 require './hpfeeds.rb'
-
-config = {
-	server: 'hpfeeds.honeycloud.net',
-	port:   10000,
-	ident:  'MyUsername',
-	auth:   'MyPassword'
-}
+require './config.rb'
 
 def handle_payload(name, chan, payload)
 	begin
@@ -24,7 +18,7 @@ end
 
 EventMachine::run do
 	Fiber.new{
-		hp = HPFeed.new(config[:server], config[:port], config[:ident], config[:auth], method(:handle_payload))
+		hp = HPFeed.new($config[:server], $config[:port], $config[:ident], $config[:auth], method(:handle_payload))
 		hp.subscribe("geoloc.events")
 	}.resume
 end
