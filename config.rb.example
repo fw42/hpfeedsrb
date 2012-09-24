@@ -1,6 +1,6 @@
-#!/usr/bin/ruby1.9.1
+#!/usr/bin/env ruby
 
-config = {
+$config = {
 	server: 'hpfeeds.honeycloud.net',
 	port:   10000,
 	ident:  'MyUsername',

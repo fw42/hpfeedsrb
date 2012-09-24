@@ -1,7 +1,6 @@
-#!/usr/bin/ruby1.9.1
+#!/usr/bin/env ruby
 require 'eventmachine'
 require 'json'
-require 'pp'
 require 'fiber'
 require 'wirble'
 require './hpfeeds.rb'
@@ -16,9 +15,17 @@ def handle_payload(name, chan, payload)
 	end
 end
 
-EventMachine::run do
-	Fiber.new{
-		hp = HPFeed.new($config[:server], $config[:port], $config[:ident], $config[:auth], method(:handle_payload))
-		hp.subscribe("geoloc.events")
-	}.resume
+begin
+	EventMachine::run do
+		Fiber.new{
+			hp = HPFeed.new(
+				$config[:server],
+				$config[:port],
+				$config[:ident],
+				$config[:auth],
+			)
+			hp.subscribe("geoloc.events", method(:handle_payload))
+		}.resume
+	end
+rescue Interrupt
 end
