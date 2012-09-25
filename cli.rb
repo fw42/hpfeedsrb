@@ -6,13 +6,17 @@ require 'wirble'
 require './hpfeeds.rb'
 require './config.rb'
 
-def handle_payload(name, chan, payload)
+def on_data(name, chan, payload)
 	begin
 		json = JSON.parse(payload)
 		puts "[%s] %s: %s" % [ chan, name, Wirble::Colorize.colorize(json.inspect) ]
 	rescue JSON::ParserError
 		STDERR.puts "ERROR: JSON Parse Error"
 	end
+end
+
+def on_error(data)
+	STDERR.puts "ERROR: " + data.inspect
 end
 
 begin
@@ -23,8 +27,13 @@ begin
 				$config[:port],
 				$config[:ident],
 				$config[:auth],
+				method(:on_error)
 			)
-			hp.subscribe("geoloc.events", method(:handle_payload))
+			if hp.connected?
+				hp.subscribe("geoloc.events", method(:on_data))
+			else
+				EventMachine::stop
+			end
 		}.resume
 	end
 rescue Interrupt

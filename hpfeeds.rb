@@ -3,12 +3,15 @@ require 'digest/sha1'
 require 'fiber'
 
 class HPFeed
-	def initialize(server, port, ident, auth)
-		@feed = EventMachine::connect(server, port, HPFeedConnection, ident, auth)
-		Fiber.yield
-
+	def initialize(server, port, *args)
+		@feed = EventMachine::connect(server, port, HPFeedConnection, *args)
+		@connected = Fiber.yield
 		# Fix for stupid bug in old version of feed server
 		mysleep(1)
+	end
+
+	def connected?
+		@connected
 	end
 
 	def subscribe(*args)
@@ -28,11 +31,12 @@ module HPFeedConnection
 
 	public
 
-	def initialize(ident, auth)
+	def initialize(ident, auth, error_handler=nil)
 		@ident, @auth = ident, auth
 		@f = Fiber.current
 		@buf = ""
 		@handler = {}
+		@error_handler = error_handler
 	end
 
 	def subscribe(chan, payload_handler)
@@ -41,8 +45,6 @@ module HPFeedConnection
 	end
 
 	######
-
-	private
 
 	def receive_data(data)
 		@buf << data
@@ -56,13 +58,15 @@ module HPFeedConnection
 		end
 	end
 
+	def unbind
+		if @f.alive?
+			@f.resume(false)
+		end
+	end
+
 	def connection_completed
 		@peer = Socket.unpack_sockaddr_in(get_peername)
 		puts "Connected to #{@peer[1]}:#{@peer[0]}"
-	end
-
-	def unbind
-		puts "Connection to #{@peer[1]}:#{@peer[0]} closed"
 	end
 
 	######
@@ -79,7 +83,7 @@ module HPFeedConnection
 			name = data[1,len]
 			rand = data[(1+len)..-1]
 			send(msg_auth(rand, @ident, @auth))
-			@f.resume
+			@f.resume(true)
 		elsif op == OP[:publish]
 			len = data[0,1].unpack("C")[0]
 			name = data[1,len]
@@ -88,9 +92,9 @@ module HPFeedConnection
 			payload = data[(1+len+1+len2)..-1]
 			@handler[chan].call(name, chan, payload) if @handler[chan]
 		elsif op == OP[:error]
-			STDERR.puts "ERROR: " + [op, data].inspect
+			@error_handler.call(data) if @error_handler
 		else
-			STDERR.puts "ERROR: Unknown opcode in " + [op, data].inspect
+			# Unknown opcode
 		end
 	end
 
